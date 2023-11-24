@@ -3,8 +3,6 @@
 
 #define WIN32_LEAN_AND_MEAN
 
-//#include <windows.h>
-
 #include <iostream>
 #include <stdlib.h>
 #include <stdio.h>
@@ -25,8 +23,6 @@ int main()
         Sleep(1000);
     }
     std::cout << "Connected to T.A.R.G.E.T." << std::endl;
-
-    //target.send_message( "message"q" );
 
     HANDLE hFalconSharedMemoryAreaMapFile = NULL;
     while (hFalconSharedMemoryAreaMapFile == NULL)
@@ -72,6 +68,9 @@ int main()
 
         unsigned int value;
         bool updated;
+
+        std::string message("mF-16C_50");
+        target.send_message(message);
 
         while (!intelliVibeData->IsExitGame)
         {

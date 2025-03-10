@@ -41,7 +41,7 @@ F-16 DM Blk 52
 
 Other variants of the F-16 may or may not function as expected. Let me know of any problems and I will endeavour to correct them.
 
-# User LED Columns
+# LED Columns
 
 The left user LED column is used to indicate the speed brake position.
 The right user LED column is configured as follows from top to bottom:

@@ -6,13 +6,22 @@
 #include <iostream>
 #include <stdlib.h>
 #include <stdio.h>
+#include <format>
 
 #include "target.h"
 #include "FlightData.h"
 #include "IVibeData.h"
 
+const char* VERSION = "1.0.2";
+
+const char* LED_STATE_OFF   = "0";
+const char* LED_STATE_ON    = "1";
+const char* LED_STATE_FLASH = "8";
+
 int main()
 {
+    std::cout << "BMS2Target v" << VERSION << std::endl << std::endl;
+
     SOCKET s = INVALID_SOCKET;
 
     std::cout << "Waiting to connect..." << std::endl;
@@ -23,6 +32,10 @@ int main()
         Sleep(1000);
     }
     std::cout << "Connected to T.A.R.G.E.T." << std::endl;
+
+    std::string message("vBMS2Target v" + std::string(VERSION));
+    target.send_message(message);
+
 
     HANDLE hFalconSharedMemoryAreaMapFile = NULL;
     while (hFalconSharedMemoryAreaMapFile == NULL)
@@ -50,6 +63,7 @@ int main()
 
     std::cout << "Connected to Falcon BMS" << std::endl;
 
+
     if (flightdata != NULL && flightdata2 != NULL)
     {
         unsigned int nose_gear_down_lamp_state   = 0xFFFFFFFF;
@@ -61,6 +75,12 @@ int main()
         unsigned int aux_act_lamp_state          = 0xFFFFFFFF;
         unsigned int aux_low_lamp_state          = 0xFFFFFFFF;
         unsigned int aux_power_lamp_state        = 0xFFFFFFFF;
+
+        unsigned int jfs_run_lamp_state          = 0xFFFFFFFF;
+        unsigned int main_gen_lamp_state         = 0xFFFFFFFF;
+        unsigned int stby_gen_lamp_status        = 0xFFFFFFFF;
+        unsigned int flcs_rly_lamp_status        = 0xFFFFFFFF;
+        unsigned int epu_lamp_status             = 0xFFFFFFFF;
 
         unsigned int speed_brake_position = 100;
 
@@ -88,6 +108,12 @@ int main()
                 aux_act_lamp_state          = 0xFFFFFFFF;
                 aux_low_lamp_state          = 0xFFFFFFFF;
                 aux_power_lamp_state        = 0xFFFFFFFF;
+
+                jfs_run_lamp_state          = 0xFFFFFFFF;
+                main_gen_lamp_state         = 0xFFFFFFFF;
+                stby_gen_lamp_status        = 0xFFFFFFFF;
+                flcs_rly_lamp_status        = 0xFFFFFFFF;
+                epu_lamp_status             = 0xFFFFFFFF;
 
                 speed_brake_position = 100;
 
@@ -254,6 +280,86 @@ int main()
                     }
                 }
 
+                value = flightdata->lightBits2 & FlightData::JFSOn;
+                if (jfs_run_lamp_state != value)
+                {
+                    jfs_run_lamp_state = value;
+                    updated = true;
+
+                    if (jfs_run_lamp_state == FlightData::JFSOn)
+                    {
+                        std::cout << std::endl << "JFS: On";
+                    }
+                    else
+                    {
+                        std::cout << std::endl << "JFS: Off";
+                    }
+                }
+
+                value = flightdata->lightBits3 & FlightData::MainGen;
+                if (main_gen_lamp_state != value)
+                {
+                    main_gen_lamp_state = value;
+                    updated = true;
+
+                    if (main_gen_lamp_state == FlightData::MainGen)
+                    {
+                        std::cout << std::endl << "MainGen: On";
+                    }
+                    else
+                    {
+                        std::cout << std::endl << "MainGen: Off";
+                    }
+                }
+
+                value = flightdata->lightBits3 & FlightData::StbyGen;
+                if (stby_gen_lamp_status != value)
+                {
+                    stby_gen_lamp_status = value;
+                    updated = true;
+
+                    if (stby_gen_lamp_status == FlightData::StbyGen)
+                    {
+                        std::cout << std::endl << "StbyGen: On";
+                    }
+                    else
+                    {
+                        std::cout << std::endl << "StbyGen: Off";
+                    }
+                }
+
+                value = flightdata->lightBits3 & FlightData::FlcsRly;
+                if (flcs_rly_lamp_status != value)
+                {
+                    flcs_rly_lamp_status = value;
+                    updated = true;
+
+                    if (flcs_rly_lamp_status == FlightData::FlcsRly)
+                    {
+                        std::cout << std::endl << "FlcsRly: On";
+                    }
+                    else
+                    {
+                        std::cout << std::endl << "FlcsRly: Off";
+                    }
+                }
+
+                value = flightdata->lightBits2 & FlightData::EPUOn;
+                if (epu_lamp_status != value)
+                {
+                    epu_lamp_status = value;
+                    updated = true;
+
+                    if (epu_lamp_status == FlightData::EPUOn)
+                    {
+                        std::cout << std::endl << "EPUOn: On";
+                    }
+                    else
+                    {
+                        std::cout << std::endl << "EPUOn: Off";
+                    }
+                }
+
                 value = (unsigned int)(flightdata->speedBrake * 5); // convert from 0 to 1 to 0 to 5 steps of 1
                 if (speed_brake_position != value)
                 {
@@ -276,10 +382,10 @@ int main()
                 {
                     std::string message("u");
 
-                    (nose_gear_down_lamp_state == FlightData::NoseGearDown) ? message += "1" : message += "0";
-                    (left_gear_down_lamp_state == FlightData::LeftGearDown) ? message += "1" : message += "0";
-                    (right_gear_down_lamp_state == FlightData::RightGearDown) ? message += "1" : message += "0";
-                    (gear_handle_lamp_state == FlightData::GEARHANDLE) ? message += "1" : message += "0";
+                    (nose_gear_down_lamp_state  == FlightData::NoseGearDown)  ? message += LED_STATE_ON : message += LED_STATE_OFF;
+                    (left_gear_down_lamp_state  == FlightData::LeftGearDown)  ? message += LED_STATE_ON : message += LED_STATE_OFF;
+                    (right_gear_down_lamp_state == FlightData::RightGearDown) ? message += LED_STATE_ON : message += LED_STATE_OFF;
+                    (gear_handle_lamp_state     == FlightData::GEARHANDLE)    ? message += LED_STATE_ON : message += LED_STATE_OFF;
 
                     if (aux_power_lamp_state & FlightData::AuxPwr)
                     {
@@ -288,37 +394,43 @@ int main()
                         {
                             if ((aux_search_lamp_flash_state & FlightData2::AuxSrch) == FlightData2::AuxSrch)
                             {
-                                message += "2";
+                                message += LED_STATE_FLASH;
                             }
                             else
                             {
-                                message += "1";
+                                message += LED_STATE_ON;
                             }
                         }
                         else
                         {
-                            message += "0";
+                            message += LED_STATE_OFF;
                         }
 
                         // rwr_activity_status not used by target script - it should be instead of rwr_a_power_status
-                        (aux_act_lamp_state == FlightData::AuxAct) ? message += "1" : message += "0";
+                        (aux_act_lamp_state == FlightData::AuxAct) ? message += LED_STATE_ON : message += LED_STATE_OFF;
 
                         // rwr_act_power_status - resuse aux_act_lamp_state
-                        (aux_act_lamp_state == FlightData::AuxAct) ? message += "1" : message += "0";
+                        (aux_act_lamp_state == FlightData::AuxAct) ? message += LED_STATE_ON : message += LED_STATE_OFF;
 
                         // rwr_alt_low_status
-                        (aux_low_lamp_state == FlightData::AuxLow) ? message += "1" : message += "0";
+                        (aux_low_lamp_state == FlightData::AuxLow) ? message += LED_STATE_ON : message += LED_STATE_OFF;
 
                         // rwr_alt_status - set to aux_power_lamp_state
-                        (aux_power_lamp_state == FlightData::AuxPwr) ? message += "1" : message += "0";
+                        (aux_power_lamp_state == FlightData::AuxPwr) ? message += LED_STATE_ON : message += LED_STATE_OFF;
 
                         // rwr_power_status
-                        message += "1";
+                        message += LED_STATE_ON;
                     }
                     else
                     {
                         message += "000000";
                     }
+
+                    (jfs_run_lamp_state   == FlightData::JFSOn)   ? message += LED_STATE_ON : message += LED_STATE_OFF;
+                    (main_gen_lamp_state  == FlightData::MainGen) ? message += LED_STATE_ON : message += LED_STATE_OFF;
+                    (stby_gen_lamp_status == FlightData::StbyGen) ? message += LED_STATE_ON : message += LED_STATE_OFF;
+                    (flcs_rly_lamp_status == FlightData::FlcsRly) ? message += LED_STATE_ON : message += LED_STATE_OFF;
+                    (epu_lamp_status      == FlightData::EPUOn)   ? message += LED_STATE_ON : message += LED_STATE_OFF;
 
                     // Speed Brake position
                     message += speed_brake_position + '0';

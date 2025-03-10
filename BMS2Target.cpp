@@ -12,7 +12,7 @@
 #include "FlightData.h"
 #include "IVibeData.h"
 
-const char* VERSION = "1.0.2";
+const char* VERSION = "1.0.1";
 
 const char* LED_STATE_OFF   = "0";
 const char* LED_STATE_ON    = "1";

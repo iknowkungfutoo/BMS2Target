@@ -3,6 +3,7 @@
 
 #define WIN32_LEAN_AND_MEAN
 
+#include <csignal>
 #include <iostream>
 #include <stdlib.h>
 #include <stdio.h>
@@ -18,8 +19,25 @@ const char* LED_STATE_OFF   = "0";
 const char* LED_STATE_ON    = "1";
 const char* LED_STATE_FLASH = "8";
 
+namespace
+{
+    volatile sig_atomic_t quit;
+
+    void signal_handler(int sig)
+    {
+        signal(sig, signal_handler);
+        quit = 1;
+    }
+}
+
 int main()
 {
+    signal(SIGINT,  signal_handler);
+    signal(SIGTERM, signal_handler);
+#ifdef SIGBREAK
+    signal(SIGBREAK, signal_handler);
+#endif
+
     std::cout << "BMS2Target v" << VERSION << std::endl << std::endl;
 
     SOCKET s = INVALID_SOCKET;
@@ -92,7 +110,7 @@ int main()
         std::string message("mF-16C_50");
         target.send_message(message);
 
-        while (!intelliVibeData->IsExitGame)
+        while (!quit)
         {
             Sleep(100);
 
@@ -122,7 +140,7 @@ int main()
                 std::cout << std::endl << "Start flight!";
             }
 
-            while (intelliVibeData->In3D)
+            while (intelliVibeData->In3D && !quit)
             {
                 Sleep(100);
 
@@ -440,6 +458,8 @@ int main()
             }
         }
     }
+
+    if (quit) target.send_message("r");
 
     UnmapViewOfFile(flightdata);
     UnmapViewOfFile(flightdata2);

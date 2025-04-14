@@ -98,7 +98,7 @@ bool Target::send_message( const std::string& message )
 {
     const int HEADER_SIZE      = 2;
 
-    int packet_size = HEADER_SIZE + message.length(); // packet_size is length of message plus 2 bytes of header
+    int packet_size = HEADER_SIZE + (int)message.length(); // packet_size is length of message plus 2 bytes of header
     if (packet_size > MAX_PAYLOAD_SIZE)
     {
         std::cerr << "message is too long!" << std::endl;

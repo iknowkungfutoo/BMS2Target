@@ -11,7 +11,7 @@ public:
 
     Target() { m_socket = INVALID_SOCKET; }
 
-    bool create_connection(PCSTR port = "2323");
+    bool create_connection(PCSTR port = "29914");
     bool break_connection();
     bool send_message(const std::string& message);
 

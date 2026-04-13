@@ -13,7 +13,7 @@
 #include "FlightData.h"
 #include "IVibeData.h"
 
-const char* VERSION = "1.0.3";
+const char* VERSION = "1.0.4";
 
 const char* LED_STATE_OFF   = "0";
 const char* LED_STATE_ON    = "1";
@@ -378,16 +378,16 @@ int main()
                     }
                 }
 
-                value = (unsigned int)(flightdata->speedBrake * 5); // convert from 0 to 1 to 0 to 5 steps of 1
-                if (speed_brake_position != value)
-                {
-                    speed_brake_position = value;
-                    updated = true;
+                value = (unsigned int)(flightdata->speedBrake * 100); // convert to percentage, i.e. 0.0 .. 1.0 to 0 .. 100
 
-                    std::cout << std::endl << "Speed brake position: " << value;
-                }
+                // convert to five steps (plus off) to correspond to the five user LEDs on Thrustmaster throttles
+                if      (value >= 90) value = 100;
+                else if (value >= 70) value = 80;
+                else if (value >= 50) value = 60;
+                else if (value >= 30) value = 40;
+                else if (value >= 10) value = 20;
+                else value = 0;
 
-                value = (unsigned int)(flightdata->speedBrake * 5); // convert from 0 to 1 to 0 to 5 steps of 1
                 if (speed_brake_position != value)
                 {
                     speed_brake_position = value;
@@ -441,7 +441,7 @@ int main()
                     }
                     else
                     {
-                        message += "000000";
+                        message += "0000000000";
                     }
 
                     (jfs_run_lamp_state   == FlightData::JFSOn)   ? message += LED_STATE_ON : message += LED_STATE_OFF;
@@ -451,7 +451,8 @@ int main()
                     (epu_lamp_status      == FlightData::EPUOn)   ? message += LED_STATE_ON : message += LED_STATE_OFF;
 
                     // Speed Brake position
-                    message += speed_brake_position + '0';
+                    size_t number_of_zeros = 3 - std::to_string(speed_brake_position).length();
+                    message += std::string(number_of_zeros, '0') + std::to_string(speed_brake_position);
 
                     target.send_message(message);
                 }

@@ -427,8 +427,8 @@ int main()
                         // rwr_activity_status not used by target script - it should be instead of rwr_a_power_status
                         (aux_act_lamp_state == FlightData::AuxAct) ? message += LED_STATE_ON : message += LED_STATE_OFF;
 
-                        // rwr_act_power_status - resuse aux_act_lamp_state
-                        (aux_act_lamp_state == FlightData::AuxAct) ? message += LED_STATE_ON : message += LED_STATE_OFF;
+                        // rwr_act_power_status - resuse aux_power_lamp_state
+                        (aux_power_lamp_state == FlightData::AuxPwr) ? message += LED_STATE_ON : message += LED_STATE_OFF;
 
                         // rwr_alt_low_status
                         (aux_low_lamp_state == FlightData::AuxLow) ? message += LED_STATE_ON : message += LED_STATE_OFF;
@@ -441,7 +441,7 @@ int main()
                     }
                     else
                     {
-                        message += "0000000000";
+                        message += "000000";
                     }
 
                     (jfs_run_lamp_state   == FlightData::JFSOn)   ? message += LED_STATE_ON : message += LED_STATE_OFF;

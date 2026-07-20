@@ -4,7 +4,7 @@ With the recent release of the new Thrustmaster Viper Mission Pack and Viper Pan
 
 Along with BMS2TARGET, you will also need [TMHotasLEDSync](https://github.com/iknowkungfutoo/TMHotasLEDSync). Together, they enable the LEDs on the Viper Mission Pack and Viper Panel to relay the indicators in the BMS cockpits. There is a caveat, though, as I will explain below.
 
-For the Viper Mission Pack and Viper Panel, some LEDs can be used to relay the indicators of the F-16 landing gear, the landing gear handle and the threat warning auxiliary panel. It also has two columns of five user-programmable LEDs. However, the LEDs in the threat warning auxiliary switches do not fully mimic those of the real aircraft. Specifically, the “altitude” switch can either be illuminated red or green on the Viper Mission Pack / Panel as opposed to “LOW” in amber and “ALT” in green. Also, the ACT/PWR switch can only be illuminated fully instead of individually for “S” and “POWER”. Therefore, we have to accept some compromises regarding how the indicators of the F-16 can be shown on the Viper Mission Pack / Panel.
+For the Viper Mission Pack and Viper Panel, some LEDs can be used to relay the indicators of the F-16 landing gear, the landing gear handle and the threat warning auxiliary panel. It also has two columns of five user-programmable LEDs. However, the LEDs in the threat warning auxiliary switches do not fully mimic those of the real aircraft. Specifically, the “altitude” switch can either be illuminated red or green on the Viper Mission Pack / Panel as opposed to “LOW” in amber and “ALT” in green. Also, the ACT/PWR switch has only one physical LED for what are two separate real-aircraft states, so it is lit solid for POWER and flashes to indicate activity, rather than showing both independently. Therefore, we have to accept some compromises regarding how the indicators of the F-16 can be shown on the Viper Mission Pack / Panel.
 
 For now, BMS2Target only supports the F-16. In the future, I may expand it to the Warthog for the F-18 and F-15.
 
@@ -42,14 +42,19 @@ Other variants of the F-16 may or may not function as expected. If you encounter
 
 # LED Columns
 
-The left user LED column is used to indicate the speed brake position.
-The right user LED column is configured as follows from top to bottom:
+Both user LED columns are numbered from the bottom (LED 1) to the top (LED 5) on the hardware.
 
-1. JFS Run
-2. Main Gen
-3. Stby Gen
-4. FLCS Rly
-5. EPU Run
+The left column indicates speed brake position (LED 5 = brake ≥ 100% down to LED 1 = brake ≥ 20%).
+
+The right column is configured as follows:
+
+| LED | Function |
+|---|---|
+| LED 5 (top) | JFS Run |
+| LED 4 | Main Gen |
+| LED 3 | Stby Gen |
+| LED 2 | FLCS Rly |
+| LED 1 (bottom) | EPU Run |
 
 # Suggestions And Feature Requests:
 

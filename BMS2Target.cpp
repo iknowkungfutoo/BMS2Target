@@ -13,11 +13,39 @@
 #include "FlightData.h"
 #include "IVibeData.h"
 
-const char* VERSION = "1.0.5";
+const char* VERSION = "2.0.0";
 
-const char* LED_STATE_OFF   = "0";
-const char* LED_STATE_ON    = "1";
-const char* LED_STATE_FLASH = "8";
+// Integer values (not strings) - the tag-value protocol needs the actual
+// numeric value to compare and zero-pad, not a pre-formatted character.
+const int LED_STATE_OFF   = 0;
+const int LED_STATE_ON    = 1;
+const int LED_STATE_FLASH = 8;
+
+// Sentinel for a tag-value "last sent" tracker meaning "never sent yet this
+// flight" - so the first update after a flight starts always sends every
+// field once, regardless of its actual value.
+const int NOT_YET_SENT = -1;
+
+// Appends a tag-value entry (see WIRE_PROTOCOL.md's packet grammar) to
+// `message` only if `value` differs from `*sent_value` (the value last
+// actually sent for this field - distinct from the raw shared-memory-bit
+// trackers used elsewhere for console printing, since some wire fields are
+// derived from more than one raw bit and need their own diff). Updates
+// `*sent_value` when it appends. Returns true if it appended anything.
+bool append_tag_if_changed(std::string& message, const char* tag, int value, int* sent_value, int width)
+{
+    if (*sent_value == value) return false;
+
+    *sent_value = value;
+
+    std::string value_str = std::to_string(value);
+    size_t padding = width - value_str.length();
+    message += tag;
+    message += std::to_string(width);
+    message += std::string(padding, '0') + value_str;
+
+    return true;
+}
 
 namespace
 {
@@ -51,7 +79,10 @@ int main()
     }
     std::cout << "Connected to T.A.R.G.E.T." << std::endl;
 
-    std::string message("vBMS2Target v" + std::string(VERSION));
+    // "B" is the exporter type code TMHotasLEDSync uses to recognize
+    // BMS2Target specifically - see WIRE_PROTOCOL.md's "Version handshake"
+    // section. Only the bare version number follows, not descriptive text.
+    std::string message("vB" + std::string(VERSION));
     target.send_message(message);
 
 
@@ -102,6 +133,30 @@ int main()
 
         unsigned int speed_brake_position = 100;
 
+        // Last value actually SENT over the wire for each tag-value field
+        // (see WIRE_PROTOCOL.md) - NOT_YET_SENT means "never sent", so the
+        // first update of a flight always sends every field once. Distinct
+        // from the raw lamp-state trackers above: the RWR sub-fields are
+        // derived from aux_power_lamp_state gating several raw bits at once,
+        // so they need their own diff against what was actually sent, not
+        // just against their own raw bit.
+        int sent_nose_gear      = NOT_YET_SENT;
+        int sent_left_gear      = NOT_YET_SENT;
+        int sent_right_gear     = NOT_YET_SENT;
+        int sent_gear_warning   = NOT_YET_SENT;
+        int sent_rwr_search     = NOT_YET_SENT;
+        int sent_rwr_activity   = NOT_YET_SENT;
+        int sent_rwr_act_power  = NOT_YET_SENT;
+        int sent_rwr_alt_low    = NOT_YET_SENT;
+        int sent_rwr_alt        = NOT_YET_SENT;
+        int sent_rwr_power      = NOT_YET_SENT;
+        int sent_jfs_run        = NOT_YET_SENT;
+        int sent_main_gen       = NOT_YET_SENT;
+        int sent_stby_gen       = NOT_YET_SENT;
+        int sent_flcs_rly       = NOT_YET_SENT;
+        int sent_epu            = NOT_YET_SENT;
+        int sent_speed_brake    = NOT_YET_SENT;
+
         bool flight_ended = false;
 
         unsigned int value;
@@ -134,6 +189,23 @@ int main()
                 epu_lamp_status             = 0xFFFFFFFF;
 
                 speed_brake_position = 100;
+
+                sent_nose_gear      = NOT_YET_SENT;
+                sent_left_gear      = NOT_YET_SENT;
+                sent_right_gear     = NOT_YET_SENT;
+                sent_gear_warning   = NOT_YET_SENT;
+                sent_rwr_search     = NOT_YET_SENT;
+                sent_rwr_activity   = NOT_YET_SENT;
+                sent_rwr_act_power  = NOT_YET_SENT;
+                sent_rwr_alt_low    = NOT_YET_SENT;
+                sent_rwr_alt        = NOT_YET_SENT;
+                sent_rwr_power      = NOT_YET_SENT;
+                sent_jfs_run        = NOT_YET_SENT;
+                sent_main_gen       = NOT_YET_SENT;
+                sent_stby_gen       = NOT_YET_SENT;
+                sent_flcs_rly       = NOT_YET_SENT;
+                sent_epu            = NOT_YET_SENT;
+                sent_speed_brake    = NOT_YET_SENT;
 
                 flight_ended = false;
 
@@ -398,63 +470,88 @@ int main()
 
                 if (updated)
                 {
+                    // Tag-value protocol (see WIRE_PROTOCOL.md) - only fields
+                    // that actually changed get appended. The RWR sub-fields
+                    // below are all derived from aux_power_lamp_state gating
+                    // several raw bits at once, so each is diffed against its
+                    // own sent_* tracker (via append_tag_if_changed), not
+                    // against `updated` (which just means "something
+                    // happened this tick", not "this specific tag needs
+                    // resending").
                     std::string message("u");
+                    bool any_changed = false;
 
-                    (nose_gear_down_lamp_state  == FlightData::NoseGearDown)  ? message += LED_STATE_ON : message += LED_STATE_OFF;
-                    (left_gear_down_lamp_state  == FlightData::LeftGearDown)  ? message += LED_STATE_ON : message += LED_STATE_OFF;
-                    (right_gear_down_lamp_state == FlightData::RightGearDown) ? message += LED_STATE_ON : message += LED_STATE_OFF;
-                    (gear_handle_lamp_state     == FlightData::GEARHANDLE)    ? message += LED_STATE_ON : message += LED_STATE_OFF;
+                    int gear_nose    = (nose_gear_down_lamp_state  == FlightData::NoseGearDown)  ? LED_STATE_ON : LED_STATE_OFF;
+                    int gear_left    = (left_gear_down_lamp_state  == FlightData::LeftGearDown)  ? LED_STATE_ON : LED_STATE_OFF;
+                    int gear_right   = (right_gear_down_lamp_state == FlightData::RightGearDown) ? LED_STATE_ON : LED_STATE_OFF;
+                    int gear_warning = (gear_handle_lamp_state     == FlightData::GEARHANDLE)    ? LED_STATE_ON : LED_STATE_OFF;
+
+                    any_changed |= append_tag_if_changed(message, "N", gear_nose,    &sent_nose_gear,    1);
+                    any_changed |= append_tag_if_changed(message, "L", gear_left,    &sent_left_gear,    1);
+                    any_changed |= append_tag_if_changed(message, "R", gear_right,   &sent_right_gear,   1);
+                    any_changed |= append_tag_if_changed(message, "W", gear_warning, &sent_gear_warning, 1);
+
+                    int rwr_search, rwr_activity, rwr_act_power, rwr_alt_low, rwr_alt, rwr_power;
 
                     if (aux_power_lamp_state & FlightData::AuxPwr)
                     {
-                        // rwr_search_status
                         if (aux_search_lamp_state & FlightData::AuxSrch)
                         {
-                            if ((aux_search_lamp_flash_state & FlightData2::AuxSrch) == FlightData2::AuxSrch)
-                            {
-                                message += LED_STATE_FLASH;
-                            }
-                            else
-                            {
-                                message += LED_STATE_ON;
-                            }
+                            rwr_search = ((aux_search_lamp_flash_state & FlightData2::AuxSrch) == FlightData2::AuxSrch) ? LED_STATE_FLASH : LED_STATE_ON;
                         }
                         else
                         {
-                            message += LED_STATE_OFF;
+                            rwr_search = LED_STATE_OFF;
                         }
 
-                        // rwr_activity_status not used by target script - it should be instead of rwr_a_power_status
-                        (aux_act_lamp_state == FlightData::AuxAct) ? message += LED_STATE_ON : message += LED_STATE_OFF;
-
-                        // rwr_act_power_status - resuse aux_power_lamp_state
-                        (aux_power_lamp_state == FlightData::AuxPwr) ? message += LED_STATE_ON : message += LED_STATE_OFF;
-
-                        // rwr_alt_low_status
-                        (aux_low_lamp_state == FlightData::AuxLow) ? message += LED_STATE_ON : message += LED_STATE_OFF;
-
-                        // rwr_alt_status - set to aux_power_lamp_state
-                        (aux_power_lamp_state == FlightData::AuxPwr) ? message += LED_STATE_ON : message += LED_STATE_OFF;
-
-                        // rwr_power_status
-                        message += LED_STATE_ON;
+                        // rwr_activity combines with rwr_act_power on the
+                        // TMHotasLEDSync side to flash the ACT/PWR LED when
+                        // activity is on, solid when only power is on.
+                        rwr_activity  = (aux_act_lamp_state   == FlightData::AuxAct) ? LED_STATE_ON : LED_STATE_OFF;
+                        rwr_act_power = (aux_power_lamp_state == FlightData::AuxPwr) ? LED_STATE_ON : LED_STATE_OFF;
+                        rwr_alt_low   = (aux_low_lamp_state   == FlightData::AuxLow) ? LED_STATE_ON : LED_STATE_OFF;
+                        // rwr_alt reuses aux_power_lamp_state - shared memory
+                        // has no separate "normal altitude" bit, so this
+                        // shows green ALT whenever powered and not low-alt.
+                        rwr_alt       = (aux_power_lamp_state == FlightData::AuxPwr) ? LED_STATE_ON : LED_STATE_OFF;
+                        rwr_power     = LED_STATE_ON;
                     }
                     else
                     {
-                        message += "000000";
+                        rwr_search    = LED_STATE_OFF;
+                        rwr_activity  = LED_STATE_OFF;
+                        rwr_act_power = LED_STATE_OFF;
+                        rwr_alt_low   = LED_STATE_OFF;
+                        rwr_alt       = LED_STATE_OFF;
+                        rwr_power     = LED_STATE_OFF;
                     }
 
-                    (jfs_run_lamp_state   == FlightData::JFSOn)   ? message += LED_STATE_ON : message += LED_STATE_OFF;
-                    (main_gen_lamp_state  == FlightData::MainGen) ? message += LED_STATE_ON : message += LED_STATE_OFF;
-                    (stby_gen_lamp_status == FlightData::StbyGen) ? message += LED_STATE_ON : message += LED_STATE_OFF;
-                    (flcs_rly_lamp_status == FlightData::FlcsRly) ? message += LED_STATE_ON : message += LED_STATE_OFF;
-                    (epu_lamp_status      == FlightData::EPUOn)   ? message += LED_STATE_ON : message += LED_STATE_OFF;
+                    any_changed |= append_tag_if_changed(message, "Q", rwr_search,    &sent_rwr_search,    1);
+                    any_changed |= append_tag_if_changed(message, "A", rwr_activity,  &sent_rwr_activity,  1);
+                    any_changed |= append_tag_if_changed(message, "Z", rwr_act_power, &sent_rwr_act_power, 1);
+                    any_changed |= append_tag_if_changed(message, "J", rwr_alt_low,   &sent_rwr_alt_low,   1);
+                    any_changed |= append_tag_if_changed(message, "E", rwr_alt,       &sent_rwr_alt,       1);
+                    any_changed |= append_tag_if_changed(message, "V", rwr_power,     &sent_rwr_power,     1);
+
+                    int jfs_run  = (jfs_run_lamp_state   == FlightData::JFSOn)   ? LED_STATE_ON : LED_STATE_OFF;
+                    int main_gen = (main_gen_lamp_state  == FlightData::MainGen) ? LED_STATE_ON : LED_STATE_OFF;
+                    int stby_gen = (stby_gen_lamp_status == FlightData::StbyGen) ? LED_STATE_ON : LED_STATE_OFF;
+                    int flcs_rly = (flcs_rly_lamp_status == FlightData::FlcsRly) ? LED_STATE_ON : LED_STATE_OFF;
+                    int epu      = (epu_lamp_status      == FlightData::EPUOn)   ? LED_STATE_ON : LED_STATE_OFF;
+
+                    any_changed |= append_tag_if_changed(message, "S", jfs_run,  &sent_jfs_run,  1);
+                    any_changed |= append_tag_if_changed(message, "G", main_gen, &sent_main_gen, 1);
+                    any_changed |= append_tag_if_changed(message, "T", stby_gen, &sent_stby_gen, 1);
+                    any_changed |= append_tag_if_changed(message, "C", flcs_rly, &sent_flcs_rly, 1);
+                    any_changed |= append_tag_if_changed(message, "U", epu,      &sent_epu,      1);
 
                     // Speed Brake position
-                    size_t number_of_zeros = 3 - std::to_string(speed_brake_position).length();
-                    message += std::string(number_of_zeros, '0') + std::to_string(speed_brake_position);
+                    any_changed |= append_tag_if_changed(message, "B", (int)speed_brake_position, &sent_speed_brake, 3);
 
-                    target.send_message(message);
+                    if (any_changed)
+                    {
+                        target.send_message(message);
+                    }
                 }
             }
         }

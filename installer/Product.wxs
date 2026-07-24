@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+  <!--
+    UpgradeCode must stay the same across every release - it's what lets a
+    newer installer detect and replace an older install instead of installing
+    side-by-side. Never change it after the first release.
+  -->
+  <Package Name="BMS2Target"
+           Manufacturer="BMS2Target"
+           Version="$(var.ProductVersion)"
+           UpgradeCode="1B65E873-447B-4873-BCE0-5D63EC5A6BF3"
+           Compressed="yes"
+           Scope="perMachine">
+
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of BMS2Target is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Without this, the "Apps & features" / "Programs and Features" entry falls back to a generic Windows Installer icon. -->
+    <Icon Id="AppIcon.ico" SourceFile="../BMS2Target.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="BMS2Target" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <Component Id="MainExecutable">
+        <File Id="BMS2TargetExe" Source="$(var.BMS2TargetExePath)" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!--
+      Shortcut-only component: it doesn't own the exe file (that's
+      MainExecutable, in a different directory), so per standard MSI
+      practice it needs its own KeyPath - a per-machine registry value,
+      since a Shortcut element alone can't serve as one.
+    -->
+    <Component Id="StartMenuShortcut" Directory="ProgramMenuFolder">
+      <Shortcut Id="BMS2TargetStartMenuShortcut"
+                Name="BMS2Target"
+                Description="Forwards Falcon BMS lamp/gear/speedbrake state to Thrustmaster T.A.R.G.E.T."
+                Target="[#BMS2TargetExe]"
+                WorkingDirectory="INSTALLFOLDER" />
+      <RegistryValue Root="HKLM" Key="Software\BMS2Target" Name="StartMenuShortcutInstalled" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <Feature Id="MainFeature" Title="BMS2Target" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+  </Package>
+</Wix>

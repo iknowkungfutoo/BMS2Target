@@ -58,6 +58,39 @@ The connect message is built as `"vB" + std::string(VERSION)` - the `"B"` here i
 
 **Example:** BMS2Target v1.0.5 connecting sends `vB1.0.5`; `TMHotasLEDSync` prints `Connected to BMS2Target v1.0.5 (TMHotasLEDSync v2.0.0)`.
 
+## Heartbeat / connection-loss detection
+
+Because the `'u'` update packet is delta-only (see above), silence alone is ambiguous - "nothing changed" and "the sender is gone" look identical to a receiver that only watches for `'u'` packets. The heartbeat closes that gap:
+
+```
+heartbeat_packet := 'h'
+```
+
+A bare single character, no payload. `BMS2Target.cpp`'s polling loop sends one roughly every second (`HEARTBEAT_INTERVAL_MS` = 1000), independent of whether a `'u'` delta also fires that tick - it's sent purely to prove "I'm still here", any time `target_connected` is true, whether or not a flight is currently in progress.
+
+`TMHotasLEDSync` treats receipt of **any** packet - `'q'`, `'r'`, `'v'`, `'m'`, `'u'`, or `'h'` - as proof of life and resets an inactivity counter; if none arrive for about 5 seconds it goes dark and forgets the current aircraft. This covers both an ungraceful crash of Falcon BMS or this app (no time to send `'q'`) and a user switching from this exporter to dcs2target (or back) without restarting `TMHotasLEDSync`.
+
+The watchdog only arms after the first packet `TMHotasLEDSync` has seen since it started - sitting idle waiting for a sim to launch is not a lost connection (there was never one to lose), so no "connection lost" message or `lights_out()` fires until at least one sender has connected at least once. It's also disarmed by a `'q'` (graceful sim exit) and re-arms automatically on the next packet - the silence between one sim session ending and the next one starting is expected, not a fault, the same as the pre-first-connection case.
+
+## Reset packets (implemented everywhere, previously undocumented here)
+
+Two single-character, payload-less packets exist alongside the `'u'`/`'v'` formats above - both were already implemented in `TMHotasLEDSync` and (for `'q'`) already sent by `dcs2target` before this repo adopted either; this section just catches the mirror up to reality.
+
+```
+reset_packet     := 'r'   -- full reset: TMHotasLEDSync's reset_leds(), a ~2s
+                            blocking LED self-test sweep. Sent by BMS2Target
+                            at normal end-of-flight (IsEndFlight) and at quit.
+                            Expensive - don't send it from a path that could
+                            fire repeatedly (e.g. reconnect churn).
+quit_packet      := 'q'   -- lights-out: TMHotasLEDSync's lights_out(), a
+                            cheap immediate all-off with no self-test sweep.
+                            Sent by BMS2Target when Falcon BMS itself has
+                            gone away (IntellivibeData::IsExitGame), so the
+                            LEDs don't stay stuck showing stale state.
+```
+
+`'r'` and `'q'` both bypass the `sent_*` diffing entirely - they're unconditional commands, not tag-value entries.
+
 ## Tag scope: per-aircraft, not global
 
 `TMHotasLEDSync`'s `TCPCallback` dispatches by aircraft before any field decoding happens. Because of that, **a tag only needs to be unique within one aircraft's own table below** - it's safe (and expected) for the same letter to mean different things for different aircraft. BMS2Target only ever sends F-16C data, so only the F-16C table below applies to this repo.

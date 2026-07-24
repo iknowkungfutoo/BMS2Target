@@ -1,6 +1,7 @@
 # What Is BMS2TARGET?
 
-With the recent release of the new Thrustmaster Viper Mission Pack and Viper Panel, many users have shared their dismay that the landing gear and other indicators are not working/integrated with BMS. This isn’t a fault of the product or Thrustmaster as there are far too many applications of which each has its unique style of exposing simulation data. It isn’t fair to expect Thrustmaster to support all of those applications and this is where the community fills the gap.
+Out of the box, the Thrustmaster Viper Mission Pack and Viper Panel landing gear and other indicators are not functional and are not integrated with DCS or Falcon BMS. This isn't a fault of the product or Thrustmaster as there are far too many applications, each with their unique style of exposing simulation data. It isn't fair to expect Thrustmaster to support all of those applications and this is where the community fills the gap.
+
 
 Along with BMS2TARGET, you will also need [TMHotasLEDSync](https://github.com/iknowkungfutoo/TMHotasLEDSync). Together, they enable the LEDs on the Viper Mission Pack and Viper Panel to relay the indicators in the BMS cockpits. There is a caveat, though, as I will explain below.
 
@@ -10,26 +11,30 @@ For now, BMS2Target only supports the F-16. In the future, I may expand it to th
 
 # How It Works:
 
-BMS2Target.exe is a console application for 64-bit Windows. I have not built a 32-bit version and expect 99.99% of users will not be on Windows XP!
+BMS2Target.exe is a 64-bit Windows application that runs quietly in the system tray - no console window, no taskbar entry. I have not built a 32-bit version and expect 99.99% of users will not be on Windows XP!
 
 BMS2Target.exe reads data from the Falcon BMS shared memory and sends the relevant lamp data to the Thrustmaster TARGET software running the TMHotasLEDSync.tmc script. The data is sent via TCP and only if the data changes. The TARGET script handles each packet through an event. Thus, it is reasonably efficient and should introduce any significant load on your CPU.
 
 BMS2Target.exe reads the Falcon shared memory every 100ms (that’s ten times a second). It’s not too taxing on the system yet fast enough so that we humans shouldn’t notice any lag.
 
+If the TARGET script is restarted or its connection drops, BMS2Target reconnects on its own once it's back - no need to restart BMS2Target. If Falcon BMS itself closes or crashes, BMS2Target notices and resets the LEDs so they don't get stuck showing stale state.
+
+BMS2Target only holds a connection to the TARGET script while Falcon BMS is actually running - it never connects to TARGET without BMS present, and disconnects as soon as BMS closes. This means you can quit BMS and start DCS (with dcs2target) instead without needing to restart TMHotasLEDSync or BMS2Target: TARGET's connection is left free for dcs2target to take over. It also sends a small heartbeat signal roughly once a second so TMHotasLEDSync can tell the difference between "nothing has changed" and "BMS2Target has stopped responding" - if BMS2Target vanishes without a clean disconnect (a crash, for example), TMHotasLEDSync notices within a few seconds and turns the LEDs off on its own.
+
 The TARGET script does not configure your ViperTQS for use with BMS. It merely controls the LEDs of the ViperTQS. If you use a TARGET script to map your device to BMS, I suggest using the Alternative Launcher instead. However, if you wish to use a target script to map the ViperTQS to BMS, you’ll have to try to figure out how to combine this script with yours. Please don’t ask me to help combine scripts; you’ll have to figure that out yourself.
 
 # Installation:
 
-1. Download the bms2target.exe file from the releases section and put it anywhere on your PC.
-2. Download and unzip the [TMHotasLEDSync.zip](https://github.com/iknowkungfutoo/TMHotasLEDSync) file to a folder of your choosing.
+1. Download `BMS2Target-Setup.msi` from the releases section and run it. It installs to Program Files with a Start Menu shortcut, and uninstalls cleanly from "Apps & features".
+2. Install [TMHotasLEDSync](https://github.com/iknowkungfutoo/TMHotasLEDSync) using its MSI installer. This creates a "Thrustmaster HOTAS LED Sync" shortcut in a "Slughead Products" Start Menu folder that automatically starts the Thrustmaster T.A.R.G.E.T. software with the TMHotasLEDSync.tmc script loaded and running.
 
 # How To Use:
 
-1. Run the bms2target.exe by double clicking on it.
-2. Start the Thrustmaster T.A.R.G.E.T. script editor.
-3. Open the TMHotasLEDSync.tmc script from the folder where you extracted TMHotasLEDSync.zip.
-4. Start the script.
-4. Start BMS.
+1. Run BMS2Target via its Start Menu shortcut. It has no window - look for its icon in the system tray (you may need to click the "show hidden icons" arrow next to the clock).
+2. Run the "Thrustmaster HOTAS LED Sync" shortcut created by its installer (Start Menu > Slughead Products, or the Desktop if you chose that option).
+3. Start BMS.
+
+Hovering over the tray icon shows the current connection state, and it pops up a notification when it connects to TARGET/BMS and when a flight starts or ends. Right-click the icon for an About option, to have BMS2Target launch automatically the next time you log into Windows ("Start with Windows"), and to exit.
 
 # Tested Aircraft:
 
@@ -62,13 +67,9 @@ Feel free to make any suggestions for improvements here [discussions](https://gi
 
 # Need Help?
 
-First, ensure you have installed v3.0.24.618_rev1 or later of the Thrustmaster TARGET software. Most problems are caused by people running old versions of the software.
-If that does not solve your problem, raise an issue on the [bms2target BMS thread](https://forum.falcon-bms.com/topic/26193/bms2target-bms-to-thrustmaster-hotas-led-controller-viper-mission-pack-and-viper-panel) or [here](https://github.com/iknowkungfutoo/BMS2Target/issues).
+Raise an issue on the [bms2target BMS thread](https://forum.falcon-bms.com/topic/26193/bms2target-bms-to-thrustmaster-hotas-led-controller-viper-mission-pack-and-viper-panel) or [here](https://github.com/iknowkungfutoo/BMS2Target/issues).
 
-Be sure to include the output of the bms2target.exe console window and TARGET script editor console output in your message (you can select, copy and paste directly from the TARGET console output using your mouse).
+Be sure to include a log file and the TARGET script editor console output in your message (you can select all using CTRL-A, copy using CTRL-C and paste with CTRL-V directly from the TARGET console output using your mouse).
 
-If bms2target.exe closes before you can copy the output, you can redirect it to a log file using the following command. You will need to run it from a Windows PowerShell command prompt window where your bms2target.exe resides. To do this, navigate to where your bms2target.exe is in Windows File Explorer, then right-click in an empty area of the right-hand pane and select "Open in Terminal".
-
-    powershell ".\BMS2Target.exe | tee bms2target.log"
-
+BMS2Target doesn't log anything by default. To get a log file, right-click the tray icon and tick "Enable Log File" *before* reproducing the problem. This creates `bms2target.log` in your Downloads folder and records lamp/connection events. Unticking it (or exiting the app) stops logging; ticking it again starts a fresh log for that session.
 

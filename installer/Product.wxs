@@ -25,7 +25,14 @@
       <Directory Id="INSTALLFOLDER" Name="BMS2Target" />
     </StandardDirectory>
 
-    <StandardDirectory Id="ProgramMenuFolder" />
+    <!--
+      Nested one level down so the shortcut lands in Start Menu > Slughead
+      Products > BMS2Target, alongside TMHotasLEDSync's own shortcut rather
+      than cluttering the Start Menu root.
+    -->
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="SLUGHEADPRODUCTSFOLDER" Name="Slughead Products" />
+    </StandardDirectory>
 
     <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
       <Component Id="MainExecutable">
@@ -39,12 +46,16 @@
       practice it needs its own KeyPath - a per-machine registry value,
       since a Shortcut element alone can't serve as one.
     -->
-    <Component Id="StartMenuShortcut" Directory="ProgramMenuFolder">
+    <Component Id="StartMenuShortcut" Directory="SLUGHEADPRODUCTSFOLDER">
       <Shortcut Id="BMS2TargetStartMenuShortcut"
                 Name="BMS2Target"
                 Description="Forwards Falcon BMS lamp/gear/speedbrake state to Thrustmaster T.A.R.G.E.T."
                 Target="[#BMS2TargetExe]"
                 WorkingDirectory="INSTALLFOLDER" />
+      <!-- Cleans up the Slughead Products Start Menu folder itself on
+           uninstall (MSI only removes it if empty, so it's harmless to
+           leave here even once other Slughead Products software shares it). -->
+      <RemoveFolder Id="RemoveSlugheadProductsFolder" Directory="SLUGHEADPRODUCTSFOLDER" On="uninstall" />
       <RegistryValue Root="HKLM" Key="Software\BMS2Target" Name="StartMenuShortcutInstalled" Type="integer" Value="1" KeyPath="yes" />
     </Component>
 

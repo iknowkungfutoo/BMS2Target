@@ -2,7 +2,7 @@
 
 **This file is a mirror.** The canonical copy lives in [`TMHotasLEDSync`'s `WIRE_PROTOCOL.md`](https://github.com/iknowkungfutoo/TMHotasLEDSync/blob/main/WIRE_PROTOCOL.md) - if you're changing tag assignments, packet grammar, or per-aircraft field lists, edit it there first, then copy the changes here. Keeping both in sync is manual (these are three separate repos with no shared build), so check the canonical copy if this one looks stale.
 
-**Status: implemented here, in `TMHotasLEDSync`, and in `dcs2target` - all uncommitted/unreleased as of this writing.** Until a release is actually cut across all three repos together, do not deploy this to end users.
+**Status: implemented and released here, in `TMHotasLEDSync`, and in `dcs2target`.**
 
 This document is the canonical source of truth for the tag-value wire protocol that replaced the old fixed-position `'u'` (update) packet format. It governs three repositories:
 
